@@ -56,7 +56,6 @@ def add_args2ins(ins, arg_count, element):
         i+=1
 
 def print_ins(instructions):
-    print()
     print("instructions:")
     k = 0
     for j in instructions:
@@ -70,7 +69,6 @@ def print_args(args):
     for a in args:
         print(args[i].get_type(), args[i].get_value(), end="; ")
         i += 1
-    print()
 
 def print_all():
     print_ins(instructions)
@@ -80,16 +78,16 @@ def print_all():
     print("end")
 
 #returns number of arguments based on the opcode
-def count_arg(oppcode):
-    match oppcode:
+def count_arg(opcode):
+    match opcode:
         #0 ARGS
         case "CREATEFRAME" | "PUSHFRAME" | "POPFRAME" | "RETURN" | "BREAK":  return 0
         #1 ARG
         case "DEFVAR" | "CALL" | "PUSH" | "POPS" | "JUMP" | "EXIT" | "DPRINT" | "LABEL" | "WRITE":   return 1
         #2 ARGS
-        case "MOVE" |  "INT2CHAR" | "READ" | "STRLEN" |  "TYPE":  return 2
+        case "MOVE" |  "INT2CHAR" | "READ" | "STRLEN" |  "TYPE"| "NOT":  return 2
         #3 ARGS
-        case "ADD" | "SUB" | "MUL" | "IDIV" | "LT" | "GT" | "EQ" | "AND" | "OR" | "NOT" | "STRI2INT" | "CONCAT" | "GETCHAR" | "SETCHAR" | "JUMPIFEQ" | "JUMPIFNEQ":   return 3
+        case "ADD" | "SUB" | "MUL" | "IDIV" | "LT" | "GT" | "EQ" | "AND" | "OR" | "STRI2INT" | "CONCAT" | "GETCHAR" | "SETCHAR" | "JUMPIFEQ" | "JUMPIFNEQ":   return 3
         case _:     exit(32)
 
 def exists_in_frame(var_name, frame) -> bool:
@@ -147,13 +145,24 @@ def interpret_MOVE(arg1, arg2):
         GF[index].set_value(var2_value)
 
 def interpret_READ(arg1, arg2):
-    read = input()
+    if input:
+        file_in = open(input, 'r+')
+        lines = file_in.readlines()
+        global input_current_line
+        read = lines[input_current_line]
+        input_current_line += 1
+    else:
+        read = input()
     splitted = arg1.get_value().split("@") 
     frame = splitted[0]
     var_name = splitted[1]
     if arg2.get_value() == "int":
-        var_type = "int"
-        read = int(read)
+        try:
+            var_type = "int"
+            read = int(read)
+        except:
+            read = "nil"
+            var_type = "nil"
     elif arg2.get_value() == "string":
         var_type = "string"
     elif arg2.get_value() == "bool":
@@ -164,7 +173,7 @@ def interpret_READ(arg1, arg2):
             read = "false"
     else:
         exit(3)
-    
+
     if frame == "GF":
         index = get_index_of_var(var_name, GF)
         GF[index].set_value(read)
@@ -183,9 +192,15 @@ def interpret_POPS(arg):
         arg.set_value(stack.pop)
 
 def interpret_WRITE(arg):
+    if arg.get_type() == "var":
+        var = get_var(arg)
+        arg.set_type(var.get_type())
+        arg.set_value(var.get_value())
     if arg.get_value() == "nil":
         if arg.get_type() == "nil":
             print("", end='')
+    elif arg.get_type() != "int":
+        print(arg.get_value().strip('\n'), end='')
     else:
         print(arg.get_value(), end='')
 
@@ -197,10 +212,6 @@ def interpret_arithmetic(result, operand1, operand2, operation):
     if operand2.get_type() == "var":
         var = get_var(operand2)
         operand2.set_type(var.get_type())
-    #incorect int check, doesnt work
-    #if operand1.get_type() == "int" or operand2.get_type() == "int":
-    #   if not re.match(r"[0-9]"):
-    #        exit(32)
 
     if operand1.get_type() == "int" and operand2.get_type() == "int":
         value1 = int(operand1.get_value())
@@ -219,7 +230,7 @@ def interpret_arithmetic(result, operand1, operand2, operation):
     else:
         exit(53)
 
-def interpret_relation(result, operand1, operand2, operator): #untested
+def interpret_relation(result, operand1, operand2, operator): #untestedTODO
     splitted = result.split("@")
     frame = splitted[0]
     var_name = splitted[1]
@@ -247,6 +258,70 @@ def interpret_relation(result, operand1, operand2, operator): #untested
         print()
     else:
         exit(7)
+    if tmp_result == 1:
+        result.set_value("true")
+    else:
+        result.set_value("false")
+
+def interpret_NOT(result, operand): #untested
+    splitted = result.split("@")
+    frame = splitted[0]
+    var_name = splitted[1]
+
+    if frame == "GF":
+        if not exists_in_frame(var_name, GF):
+            exit(54)    
+    result.set_type("bool")
+    if operand.get_type() == "bool":
+        if operand.get_value().upper() == "TRUE":
+            result.set_value("false")
+        elif operand.get_value().upper() == "FALSE":
+            result.set_value("true")
+        else:
+            exit(6)
+
+def interpret_EXIT(arg):
+    err = -1
+    try:
+        err = int(arg.get_value())
+    except:
+        exit(57)
+    if err < 0 or err > 49:
+        exit(57)
+    else:
+        exit(err)
+
+def interpret_logic(result, operand1, operand2, operator): #untested
+    splitted = result.split("@")
+    frame = splitted[0]
+    var_name = splitted[1]
+
+    if frame == "GF":
+        if not exists_in_frame(var_name, GF):
+            exit(54)
+
+    if operand1.get_type() == "var":
+        var = get_var(operand1)
+        operand1.set_type(var.get_type())
+        operand1.set_value(var.get_value())
+    if operand2.get_type() == "var":
+        var = get_var(operand2)
+        operand2.set_type(var.get_type())
+    
+    
+    if operand1.get_type() != "bool" or operand2.get_type() != "bool":
+        exit(7)
+    tmp_result = 0 #false
+    match operator:
+        case "AND":
+            if operand1 and operand2:
+                tmp_result = 1
+        case "OR":
+            if operand1 or operand2:
+                tmp_result = 1
+        case _: 
+            exit(8)
+    result.set_type("bool")
     if tmp_result == 1:
         result.set_value("true")
     else:
@@ -280,6 +355,15 @@ def interpret(ins):
             interpret_relation(ins.get_args()[0], ins.get_args()[1], ins.get_args()[2], "GT")
         case "EQ":
             interpret_relation(ins.get_args()[0], ins.get_args()[1], ins.get_args()[2], "EQ")
+        case "AND":
+            interpret_logic(ins.get_args()[0], ins.get_args()[1], ins.get_args()[2], "AND")
+        case "OR":
+            interpret_logic(ins.get_args()[0], ins.get_args()[1], ins.get_args()[2], "OR")
+        case "NOT":
+            interpret_NOT(ins.get_args()[0], ins.get_args()[1])
+        case "EXIT":
+            interpret_EXIT(ins.get_args()[0])
+
 
 #arg parse
 parser = argparse.ArgumentParser()
@@ -292,6 +376,7 @@ if args.source:
     source = args.source
 if args.input:
     input = args.input
+    input_current_line = 0
 
 
 
@@ -327,10 +412,17 @@ for ins in root:
     if not "order" in ins_atributes or not "opcode" in ins_atributes:
         exit(32)
     arg_count = 0
-    for arg in ins:
+    expected_arg_count = count_arg(ins.attrib['opcode'])
+    
+    for arg in ins:    
+        if arg.attrib['type'] == "int":
+            if not(re.match(r"^[-+]?\d+$", arg.text)):
+                exit(32)
         arg_count += 1
         if not(re.match(r"arg" + re.escape(str(arg_count)) + "", arg.tag)):
             exit(32)
+    if arg_count != expected_arg_count:
+        exit(32)
     
 #Create instruction objects from XML
 instructions = []
