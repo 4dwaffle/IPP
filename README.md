@@ -1,5 +1,8 @@
 # IPP project 2022/23
 (IPP = OOP class in BUT FIT)
+
+![](./img/pipeline_white.png)
+
 ## parse.php
 This script reads IPPcode23 code from the standard input, checks its lexical and syntactic correctness and prints its XML representation to the standard output according to the assinged specification.
 
