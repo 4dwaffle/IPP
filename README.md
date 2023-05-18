@@ -1,5 +1,4 @@
 # IPP project 2022/23
-(IPP = OOP class in BUT FIT)
 
 ![](./img/pipeline_white.png)
 
