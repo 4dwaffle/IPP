@@ -1,6 +1,9 @@
 # IPP project 2022/23
 
-![](./img/pipeline_white.png)
+<picture>
+ <source media="(prefers-color-scheme: dark)" srcset="./img/pipeline_white.png">
+    <img src="./img/pipeline_black.png">
+</picture>
 
 ## parse.php
 This script reads IPPcode23 code from the standard input, checks its lexical and syntactic correctness and prints its XML representation to the standard output according to the assinged specification.
